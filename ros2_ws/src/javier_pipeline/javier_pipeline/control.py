@@ -21,8 +21,20 @@ def compute(path_body: np.ndarray, speed: float):
     """Path in the car frame + current speed -> (throttle, steering, brake).
 
     steering: + = left, like y in the car frame. tick() flips it for /control_command.
+    
+    for orientation: PID,PurePursuit,Stanley
+    for velocity: PID
     """
-    return 0.5, 0.5, 0.0   # stand still. Replace me!
+    #PurePursuit
+    L_min = 1
+    k = 0.3
+    L_d_max = 4
+    L_d = np.clip(k * speed + L_min, L_min, L_d_max) #La distancia a la que ve
+    d = np.hypot(path_body[:, 0], path_body[:, 1]) #Linea recta 
+
+
+
+    return 0.0, 0.0, 0.1   # stand still. Replace me!
 
 
 class Control(Node):

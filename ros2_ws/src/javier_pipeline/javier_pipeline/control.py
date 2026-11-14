@@ -27,14 +27,36 @@ def compute(path_body: np.ndarray, speed: float):
     """
     #PurePursuit
     L_min = 1
-    k = 0.3
+    k = 0.5
     L_d_max = 4
+
     L_d = np.clip(k * speed + L_min, L_min, L_d_max) #La distancia a la que ve
-    d = np.hypot(path_body[:, 0], path_body[:, 1]) #Linea recta 
+    d = np.hypot(path_body[:, 0], path_body[:, 1]) #Linea recta     
+    ahead = (path_body[:, 0] > 0) & (d >= L_d) #Los puntos que están delante y por encima del l_d
+    i = np.argmax(ahead) if ahead.any() else  len(d) - 1
+    x,y = path_body[i]
 
+    curvature = 2*y/(x**2 + y**2)
+    steer = np.arctan(1.627 * curvature) / np.radians(22.4)
+    throttle = float(np.clip(0.5 * (3.5 - speed), 0, 1))
 
+    if 0.2 <= abs(steer) <= 0.4 :
+        brake = abs(0.1*steer)
+        K_v = 0.4
+    elif 0.4 <= abs(steer) <= 0.8 :
+        brake = abs(0.2*steer)
+        K_v = 0.3
+    elif 0.8 <= abs(steer) <= 1 :
+        brake = abs(0.3*steer)
+        K_v = 0.2
+    else:
+        brake = 0.0
+        K_v = 0.5
+    
+    throttle = float(np.clip(K_v * (3.5 - speed), 0, 1))   # target 3.5 m/s
+    
+    return throttle, float(np.clip(steer, -1, 1)), brake
 
-    return 0.0, 0.0, 0.1   # stand still. Replace me!
 
 
 class Control(Node):

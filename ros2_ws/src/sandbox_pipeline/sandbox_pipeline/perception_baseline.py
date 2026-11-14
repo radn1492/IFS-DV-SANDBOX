@@ -124,6 +124,8 @@ class PerceptionBaseline(Node):
         extent = np.array([0.0] + [max(s[0].stop - s[0].start, s[1].stop - s[1].start) * cell for s in sl])
         ok = (count >= min_points) & (extent <= max_extent)
         ok[0] = False                                                  # label 0 = empty cells
+        
+
         return np.column_stack((cx[ok], cy[ok])), ci[ok], top[ok]
 
     @staticmethod

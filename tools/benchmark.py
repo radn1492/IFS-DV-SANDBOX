@@ -8,6 +8,7 @@ Inside the sandbox shell this is `sb-score`:
     sb-score perception:=gt planning:=alice_pipeline/planning --gt-noise
     sb-score --scenario mock-all                 # every mock track
     sb-score --scenario ifssim-B                 # IFSSIM must be running (loads + starts it for you)
+    sb-score --no-foxglove                       # without Foxglove (on by default, ws://localhost:8765)
     sb-score --list                              # show scenarios
 
 Each run is saved in results/<label>/ and the leaderboard is printed
@@ -42,6 +43,8 @@ SCENARIOS = {
 }
 BAG_TOPICS = ["/lidar_points", "/imu", "/motor_rpm", "/steering_angle", "/tf_static"]
 GROUPS = {
+    "mock": ["mock-B"],        # short names: the default track
+    "ifssim": ["ifssim-B"],
     "real": ["real-bag"],
     "mock-all": ["mock-A", "mock-B", "mock-C"],
     "ifssim-all": ["ifssim-A", "ifssim-B"],   # not C: in IFSSIM that track runs into a tyre wall
@@ -138,7 +141,7 @@ def run_bag(name: str, label: str, stage_args: list[str], config: dict, real: bo
 
 
 def run_scenario(name: str, label: str, stage_args: list[str], config: dict, laps: int,
-                 params_file: str | None, real: bool) -> dict:
+                 params_file: str | None, real: bool, foxglove: bool = True) -> dict:
     sc = SCENARIOS[name]
     os.makedirs(os.path.join(RESULTS, label), exist_ok=True)
     own(RESULTS)
@@ -147,7 +150,7 @@ def run_scenario(name: str, label: str, stage_args: list[str], config: dict, lap
     log = os.path.join(tempfile.gettempdir(), f"bench-{name}.log")
 
     launch = ["ros2", "launch", "sandbox_bringup", "sandbox.launch.py", f"sim:={sc['sim']}",
-              "foxglove:=false", *stage_args]
+              f"foxglove:={'true' if foxglove else 'false'}", *stage_args]
     if sc["sim"] == "mock":
         launch.append(f"track:={sc['track']}")
     if params_file:
@@ -207,6 +210,8 @@ def main():
     ap.add_argument("--real", action="store_true", help="score the REAL pipeline (started separately, see tools/benchmark_real.sh)")
     ap.add_argument("--record-reference", action="store_true",
                     help="(heads) with --real on a bag scenario: save the real pipeline's outputs as the reference")
+    ap.add_argument("--foxglove", action=argparse.BooleanOptionalAction, default=True,
+                    help="start the Foxglove bridge (ws://localhost:8765) to watch the run (default: on)")
     ap.add_argument("--list", action="store_true")
     a = ap.parse_args()
 
@@ -253,7 +258,7 @@ def main():
             res = run_bag(n, a.label, a.stage_args, cfg, a.real, a.record_reference)
             print(f"--> {n}: {res['status']}, perception {res['perception']['score']}")
             continue
-        res = run_scenario(n, a.label, a.stage_args, config, a.laps, params_file, a.real)
+        res = run_scenario(n, a.label, a.stage_args, config, a.laps, params_file, a.real, a.foxglove)
         print(f"--> {n}: {res['status']}, time {res['time_s']}, cones hit {res['cones_hit']}")
 
     subprocess.run([sys.executable, os.path.join(ROOT, "tools", "leaderboard.py"),

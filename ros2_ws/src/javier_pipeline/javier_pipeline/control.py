@@ -38,7 +38,7 @@ def compute(path_body: np.ndarray, speed: float):
 
     curvature = 2*y/(x**2 + y**2)
     steer = np.arctan(1.627 * curvature) / np.radians(22.4)
-    throttle = float(np.clip(0.5 * (3.5 - speed), 0, 1))
+    K_v = 0.5
 
     if 0.2 <= abs(steer) <= 0.4 :
         brake = abs(0.1*steer)

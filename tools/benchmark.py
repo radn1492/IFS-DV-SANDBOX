@@ -8,7 +8,7 @@ Inside the sandbox shell this is `sb-score`:
     sb-score perception:=gt planning:=alice_pipeline/planning --gt-noise
     sb-score --scenario mock-all                 # every mock track
     sb-score --scenario ifssim-B                 # IFSSIM must be running (loads + starts it for you)
-    sb-score --foxglove                          # watch it in Foxglove (ws://localhost:8765)
+    sb-score --no-foxglove                       # without Foxglove (on by default, ws://localhost:8765)
     sb-score --list                              # show scenarios
 
 Each run is saved in results/<label>/ and the leaderboard is printed
@@ -141,7 +141,7 @@ def run_bag(name: str, label: str, stage_args: list[str], config: dict, real: bo
 
 
 def run_scenario(name: str, label: str, stage_args: list[str], config: dict, laps: int,
-                 params_file: str | None, real: bool, foxglove: bool = False) -> dict:
+                 params_file: str | None, real: bool, foxglove: bool = True) -> dict:
     sc = SCENARIOS[name]
     os.makedirs(os.path.join(RESULTS, label), exist_ok=True)
     own(RESULTS)
@@ -210,8 +210,8 @@ def main():
     ap.add_argument("--real", action="store_true", help="score the REAL pipeline (started separately, see tools/benchmark_real.sh)")
     ap.add_argument("--record-reference", action="store_true",
                     help="(heads) with --real on a bag scenario: save the real pipeline's outputs as the reference")
-    ap.add_argument("--foxglove", action="store_true",
-                    help="also start the Foxglove bridge (ws://localhost:8765) to watch the run")
+    ap.add_argument("--foxglove", action=argparse.BooleanOptionalAction, default=True,
+                    help="start the Foxglove bridge (ws://localhost:8765) to watch the run (default: on)")
     ap.add_argument("--list", action="store_true")
     a = ap.parse_args()
 

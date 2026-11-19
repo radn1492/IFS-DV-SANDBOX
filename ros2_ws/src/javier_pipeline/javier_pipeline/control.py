@@ -25,6 +25,7 @@ def compute(path_body: np.ndarray, speed: float):
     for orientation: PID,PurePursuit,Stanley
     for velocity: PID
     """
+
     #PurePursuit
     L_min = 1
     k = 0.5
@@ -39,21 +40,23 @@ def compute(path_body: np.ndarray, speed: float):
     curvature = 2*y/(x**2 + y**2)
     steer = np.arctan(1.627 * curvature) / np.radians(22.4)
     K_v = 0.5
+    v_target = 4
 
-    if 0.2 <= abs(steer) <= 0.4 :
-        brake = abs(0.1*steer)
-        K_v = 0.4
-    elif 0.4 <= abs(steer) <= 0.8 :
-        brake = abs(0.2*steer)
-        K_v = 0.3
-    elif 0.8 <= abs(steer) <= 1 :
-        brake = abs(0.3*steer)
-        K_v = 0.2
+    if 0.7 <= abs(steer) < 0.8 :
+        v_target = 2.4/4 * v_target
+    elif 0.8 <= abs(steer) < 0.9 :
+        v_target = 2.1/4 * v_target
+    elif 0.9 <= abs(steer) <= 1 : 
+        v_target = 1.2/4 * v_target
+
+
+    v_reference = K_v * (v_target - speed)
+    if v_reference < 0:
+        brake = abs(v_reference)
+        throttle = 0.0
     else:
         brake = 0.0
-        K_v = 0.5
-    
-    throttle = float(np.clip(K_v * (3.5 - speed), 0, 1))   # target 3.5 m/s
+        throttle = float(np.clip(v_reference, 0, 1))   
     
     return throttle, float(np.clip(steer, -1, 1)), brake
 

@@ -34,31 +34,37 @@ def compute(path_body: np.ndarray, speed: float):
     L_d = np.clip(k * speed + L_min, L_min, L_d_max) #La distancia a la que ve
     d = np.hypot(path_body[:, 0], path_body[:, 1]) #Linea recta     
     ahead = (path_body[:, 0] > 0) & (d >= L_d) #Los puntos que están delante y por encima del l_d
-    i = np.argmax(ahead) if ahead.any() else  len(d) - 1
+    
+    i = np.argmax(ahead) if ahead.any() else len(d) - 1   
+    
     x,y = path_body[i]
 
     curvature = 2*y/(x**2 + y**2)
     steer = np.arctan(1.627 * curvature) / np.radians(22.4)
-    K_v = 0.5
-    v_target = 4
+    steer = float(np.clip(steer, -1, 1))
 
-    if 0.7 <= abs(steer) < 0.8 :
-        v_target = 2.4/4 * v_target
-    elif 0.8 <= abs(steer) < 0.9 :
-        v_target = 2.1/4 * v_target
-    elif 0.9 <= abs(steer) <= 1 : 
-        v_target = 1.2/4 * v_target
+    K_v = 0.4
+    K_f = 0.3
+    v_target = 5
 
+    if 0.3 <= abs(steer) < 0.5 :
+        v_target = 0.75 * v_target
+    elif 0.5 <= abs(steer) < 0.8 :
+        v_target = 0.5 * v_target
+    elif 0.8 <= abs(steer) <= 1 :
+        v_target = 0.4 * v_target
 
     v_reference = K_v * (v_target - speed)
-    if v_reference < 0:
-        brake = abs(v_reference)
+    b_reference = K_f * (v_target - speed)
+
+    if v_target - speed < - 0.1 :
+        brake = abs(b_reference)
         throttle = 0.0
     else:
         brake = 0.0
         throttle = float(np.clip(v_reference, 0, 1))   
     
-    return throttle, float(np.clip(steer, -1, 1)), brake
+    return throttle, steer, brake
 
 
 

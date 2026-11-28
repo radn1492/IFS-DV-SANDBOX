@@ -8,6 +8,8 @@
     sb-launch control:=off                      # drive yourself: ros2 run sandbox_tools teleop
     sb-launch planning:=alice_pipeline/planning # use your own node
     sb-launch params:=/sandbox/my_params.yaml   # override parameters
+    sb-launch powertrain:=true                  # two rear motors: regen on brake (max 20 % of forward torque)
+    sb-launch powertrain:=true ediff:=true      # ... and an electronic differential between the wheels
 
 Stage values:
     baseline   the simple node in sandbox_pipeline (default)
@@ -92,6 +94,16 @@ def setup(context):
         nodes.append(Node(package=pkg, executable=exe, name=name, output="screen",
                           parameters=common, emulate_tty=True))
 
+    if arg("ediff") == "true" and arg("powertrain") != "true":
+        raise RuntimeError("ediff:=true needs powertrain:=true")
+    if arg("powertrain") == "true" and arg("sim") == "ifssim":
+        raise RuntimeError("powertrain:=true needs sim:=mock: IFSSIM has one drivetrain and ignores /motor_command")
+    if arg("powertrain") == "true":
+        # /control_command -> /motor_command: regen + optional electronic differential
+        # for the two rear motors. Off when your control node drives each motor itself.
+        nodes.append(Node(package="sandbox_tools", executable="powertrain", name="powertrain",
+                          output="screen", parameters=common + [{"ediff": arg("ediff") == "true"}]))
+
     if arg("real") == "true":
         # The real IFS09 pipeline runs in its own container (tools/benchmark_real.sh);
         # this only republishes its outputs on the sandbox contract for scoring.
@@ -105,7 +117,7 @@ def setup(context):
     nodes.append(Node(package="sandbox_tools", executable="visualizer", name="visualizer",
                       parameters=common))
     nodes.append(Node(package="sandbox_tools", executable="monitor", name="monitor",
-                      output="screen", parameters=common))
+                      output="screen", parameters=common + [{"sim": sim}]))
 
     if arg("foxglove") == "true":
         nodes.append(Node(
@@ -123,6 +135,10 @@ def generate_launch_description():
                               description="track CSV for sim:=mock (file in tracks/)"),
         DeclareLaunchArgument("skew", default_value="false", description="publish /lidar_points_skewed"),
         DeclareLaunchArgument("foxglove", default_value="true"),
+        DeclareLaunchArgument("powertrain", default_value="false",
+                              description="opt in: start the powertrain node (/control_command -> /motor_command, with regen)"),
+        DeclareLaunchArgument("ediff", default_value="false",
+                              description="opt in, with powertrain:=true: electronic differential between the two rear motors"),
         DeclareLaunchArgument("real", default_value="false",
                               description="republish the real IFS09 pipeline's outputs (benchmark reference)"),
         DeclareLaunchArgument("params", default_value="", description="optional params YAML"),

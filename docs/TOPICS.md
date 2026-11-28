@@ -13,6 +13,27 @@ in `sandbox_tools/contract.py` (`from sandbox_tools import contract`).
 | `/sandbox/map` | `sandbox_msgs/ConeArray` | `map` | ~10 Hz | slam | the whole map every time, not just new cones |
 | `/sandbox/path` | `nav_msgs/Path` | `map` | ~10 Hz | planning | first point = the car, ordered in driving direction |
 | `/control_command` | `fs_msgs/ControlCommand` | n/a | 40 Hz | control | `throttle` [0,1], `brake` [0,1], `steering` [-1,1], **+ = right** (car convention, as in IFSSIM and IFS09). 1 = 22.4° at the wheels |
+| `/motor_command` | `sandbox_msgs/MotorCommand` | n/a | 40 Hz | powertrain (or your control) | `left`, `right` torque of the two rear motors, normalised to max forward torque: `1` = full drive, `0` = coast, `-0.2` = full regen (regen is limited to 20 % of forward torque). Made from `/control_command` by the `powertrain` node |
+
+### Rear motors, regen and electronic differential
+
+Step-by-step guide with examples: [POWERTRAIN.md](POWERTRAIN.md). Reference:
+
+The car has two rear motors, one per wheel. You can stay with `/control_command` (easy) or take over the motors (full):
+
+- **Default: off.** Publish `/control_command` and the car behaves as it always did (throttle, friction brake, no regen). Nothing changes unless you opt in.
+- **`sb-launch powertrain:=true`.** The `powertrain` node turns `/control_command` into `/motor_command`: `brake` gives regen first (max 20 % of forward torque, faded out below 2 m/s), with equal torque on both motors.
+- **`sb-launch powertrain:=true ediff:=true`.** Also the electronic differential: less torque to the inner wheel in a turn, more to the outer one (the sum stays the same). Switch it at runtime with `ros2 param set /powertrain ediff true`. `ediff:=true` alone is an error.
+- **Full control.** Leave the node off and publish `/motor_command` yourself, for your own torque vectoring and regen strategy. You still publish `/control_command` for steering and the friction brake.
+- **Pitfalls of full control** (each one prints a warning, or an error at launch, so none is silent):
+  - Don't run `powertrain:=true` and your own `/motor_command` publisher together: they fight over the topic. The powertrain node warns when it sees a second publisher.
+  - Torque outside `[-0.2, 1]` is clipped (regen is capped at 20 %).
+  - If `/motor_command` stops for more than 0.5 s, the mock falls back to the `/control_command` throttle on both motors, with no regen.
+  - While your `/motor_command` arrives, the `throttle` in `/control_command` is ignored. Steering and the friction `brake` still come from it.
+  - IFSSIM ignores `/motor_command`: `powertrain:=true` there is an error (also in `sb-score`), and publishing your own makes the monitor warn.
+  - Minimal example: add `self.pub_motor = self.create_publisher(MotorCommand, contract.MOTOR_COMMAND, 10)` (`from sandbox_msgs.msg import MotorCommand`) and call `self.pub_motor.publish(MotorCommand(left=0.6, right=0.4))` next to the `ControlCommand` in `tick()`.
+- `sandbox_tools.powertrain.split_torque` is the same maths as a plain function, if you want to reuse it.
+- In the mock sim each motor pushes its own wheel: a torque difference is a yaw moment that turns the car, and `/motor_rpm_left` / `/motor_rpm_right` show the wheel speeds. With the e-diff on, the outer motor helps the car rotate; with equal torques it does not. IFSSIM has one drivetrain: the bridge ignores `/motor_command` and keeps using `/control_command`, so there the two motors are not modelled yet.
 
 ## From the simulator
 

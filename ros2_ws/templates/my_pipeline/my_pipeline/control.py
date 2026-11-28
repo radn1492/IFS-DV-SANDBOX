@@ -4,6 +4,12 @@
        /sandbox/pose      Odometry (map -> base_link), twist.linear.x = speed
   out: /control_command   fs_msgs/ControlCommand: throttle [0,1], brake [0,1], steering [-1,1] (+ = RIGHT)
 
+Optional, off by default: the two rear motors. `sb-launch powertrain:=true`
+turns brake into regen (up to 20 % of the forward torque), and adding
+`ediff:=true` splits the torque between the wheels in a turn. To command each
+motor yourself, publish /motor_command (sandbox_msgs/MotorCommand, left/right
+in [-0.2, 1]) next to /control_command.
+
 Everything inside compute() is yours. Wheelbase 1.627 m, max steer 22.4 deg.
 """
 import numpy as np
